@@ -7,7 +7,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production'
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'app', privileges: { secure: true, standard: true } }
+  { scheme: 'app', privileges: { secure: true, standard: true }}
 ])
 
 async function createWindow() {
@@ -16,7 +16,7 @@ async function createWindow() {
     width: 800,
     height: 600,
     webPreferences: {
-      
+
       // Use pluginOptions.nodeIntegration, leave this alone
       // See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
       nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION,
@@ -53,7 +53,7 @@ app.on('activate', () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', async () => {
+app.on('ready', async() => {
   // if (isDevelopment && !process.env.IS_TEST) {
   //   // Install Vue Devtools
   //   try {

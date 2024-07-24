@@ -1,0 +1,704 @@
+<template>
+  <div class="app-container">
+    <div class="filter-container">
+      <!-- <el-input v-model="listQuery.title" placeholder="Title" style="width: 200px;" class="filter-item" @keyup.enter.native="handleFilter" />
+      <el-select v-model="listQuery.importance" placeholder="Imp" clearable style="width: 90px" class="filter-item">
+        <el-option v-for="item in importanceOptions" :key="item" :label="item" :value="item" />
+      </el-select>
+      <el-select v-model="listQuery.type" placeholder="Type" clearable class="filter-item" style="width: 130px">
+        <el-option v-for="item in calendarTypeOptions" :key="item.key" :label="item.display_name+'('+item.key+')'" :value="item.key" />
+      </el-select>
+      <el-select v-model="listQuery.sort" style="width: 140px" class="filter-item" @change="handleFilter">
+        <el-option v-for="item in sortOptions" :key="item.key" :label="item.label" :value="item.key" />
+      </el-select>
+      <el-button v-waves class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">
+        Search
+      </el-button> -->
+      <el-select
+        v-model="listQuery.tableName"
+        placeholder="Table"
+        clearable
+        style="width: 90px; margin-right: 15px"
+        class="filter-item"
+      >
+        <el-option
+          v-for="item in showTableOptions"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        />
+      </el-select>
+
+      <el-button
+        v-waves
+        class="filter-item"
+        type="primary"
+        icon="el-icon-search"
+        @click="handleFilter"
+      >
+        Search
+      </el-button>
+      <el-button
+        class="filter-item"
+        style="margin-left: 10px"
+        type="primary"
+        icon="el-icon-edit"
+        @click="handleCreate"
+      >
+        Create
+      </el-button>
+
+      <el-button
+        class="filter-item"
+        style="margin-left: 10px"
+        type="success"
+        icon="el-icon-edit"
+        @click="handleAdd"
+      >
+        Add
+      </el-button>
+      <!-- <el-button v-waves :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">
+        Export
+      </el-button>
+      <el-checkbox v-model="showReviewer" class="filter-item" style="margin-left:15px;" @change="tableKey=tableKey+1">
+        reviewer
+      </el-checkbox> -->
+    </div>
+    <el-table
+      :key="tableKey"
+      v-loading="listLoading"
+      :data="showTableList"
+      border
+      fit
+      sortable
+      highlight-current-row
+      style="width: 100%"
+      height="800"
+      :row-style="{ height: '100px' }"
+    >
+      <el-table-column
+        v-for="column in showTableColumns"
+        :key="column"
+        :prop="column"
+        :label="column"
+        :width="150"
+        show-overflow-tooltip
+      >
+      </el-table-column>
+    </el-table>
+
+    <!-- <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" /> -->
+
+    <el-dialog :title="textMap[dialogStatus]" :visible.sync="dialogFormVisible">
+      <el-form
+        ref="dataForm"
+        :rules="rules"
+        :model="temp"
+        label-position="left"
+        label-width="120px"
+        style="width: 400px; margin-left: 50px"
+      >
+        <el-form-item label="表格名称" prop="newTable">
+          <el-input v-model="temp.newTable" autocomplete="off"></el-input>
+        </el-form-item>
+
+        <el-form-item label="表格A" prop="tableA">
+          <el-select
+            v-model="temp.tableA"
+            placeholder="请选择关联表格A"
+            @change="fetchColumns('A')"
+          >
+            <el-option
+              v-for="item in tableOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+              :disabled="item.disabled"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="合并列" prop="joinColumn">
+          <el-select
+            v-model="temp.joinColumn"
+            placeholder="请选择表格A的合并列"
+            @change="handleJoinColumnChange()"
+          >
+            <el-option
+              v-for="item in ColumnAoptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            >
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="表格A关联列" prop="columnsA">
+          <el-select
+            v-model="temp.columnsA"
+            multiple
+            collapse-tags
+            placeholder="请选择关联列"
+          >
+            <el-option
+              v-for="item in ColumnAoptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+              :disabled="item.disabled"
+            >
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="表格B" prop="tableB">
+          <el-select
+            v-model="temp.tableB"
+            placeholder="请选择关联表格B"
+            @change="fetchColumns('B')"
+          >
+            <el-option
+              v-for="item in tableOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+              :disabled="item.disabled"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="表格B关联列" prop="columnsB">
+          <el-select
+            v-model="temp.columnsB"
+            multiple
+            collapse-tags
+            placeholder="请选择关联列"
+          >
+            <el-option
+              v-for="item in ColumnBoptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+              :disabled="item.disabled"
+            >
+            </el-option>
+          </el-select>
+        </el-form-item>
+
+        <!-- <el-form-item label="Type" prop="type">
+          <el-select v-model="temp.type" class="filter-item" placeholder="Please select">
+            <el-option v-for="item in calendarTypeOptions" :key="item.key" :label="item.display_name" :value="item.key" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="Date" prop="timestamp">
+          <el-date-picker v-model="temp.timestamp" type="datetime" placeholder="Please pick a date" />
+        </el-form-item>
+        <el-form-item label="Title" prop="title">
+          <el-input v-model="temp.title" />
+        </el-form-item>
+        <el-form-item label="Status">
+          <el-select v-model="temp.status" class="filter-item" placeholder="Please select">
+            <el-option v-for="item in statusOptions" :key="item" :label="item" :value="item" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="Imp">
+          <el-rate v-model="temp.importance" :colors="['#99A9BF', '#F7BA2A', '#FF9900']" :max="3" style="margin-top:8px;" />
+        </el-form-item>
+        <el-form-item label="Remark">
+          <el-input v-model="temp.remark" :autosize="{ minRows: 2, maxRows: 4}" type="textarea" placeholder="Please input" />
+        </el-form-item> -->
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="dialogFormVisible = false"> Cancel </el-button>
+        <el-button
+          type="primary"
+          @click="dialogStatus === 'create' ? createData() : updateData()"
+        >
+          Confirm
+        </el-button>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+import {
+  fetchList,
+  fetchPv,
+  createArticle,
+  updateArticle,
+} from "@/api/article";
+import waves from "@/directive/waves"; // waves directive
+import { parseTime } from "@/utils";
+import Pagination from "@/components/Pagination"; // secondary package based on el-pagination
+import axios from "axios";
+
+export default {
+  name: "PatentTable",
+  components: { Pagination },
+  directives: { waves },
+
+  data() {
+    return {
+      //筛选条件
+      listQuery: {
+        tableName: "",
+      },
+      showTableOptions: [],
+      showTableName: "",
+      showTableColumns: [],
+      showTableList: [],
+
+      tableKey: 0,
+      listLoading: true,
+      total: 0,
+      dialogFormVisible: false,
+      dialogStatus: "",
+      textMap: {
+        update: "修改表格",
+        create: "新建关联表格",
+      },
+      rules: {
+        newTable: [
+          { required: true, message: "请输入表格名称", trigger: "change" },
+        ],
+        tableA: [
+          { required: true, message: "请选择关联表格A", trigger: "change" },
+        ],
+        joinColumn: [
+          { required: true, message: "请选择表格A的合并列", trigger: "change" },
+        ],
+        columnsA: [
+          {
+            required: true,
+            message: "请选择表格A关联列",
+            trigger: "change",
+            type: "array",
+          },
+        ],
+        tableB: [
+          { required: true, message: "请选择关联表格B", trigger: "change" },
+        ],
+        columnsB: [
+          {
+            required: true,
+            message: "请选择表格B关联列",
+            trigger: "change",
+            type: "array",
+          },
+        ],
+      },
+      temp: {
+        tableA: "",
+        tableB: "",
+        newTable: "",
+        columnsA: [],
+        columnsB: [],
+        joinColumn: "",
+      },
+      tableOptions: [],
+      ColumnAoptions: [],
+      ColumnBoptions: [],
+    };
+  },
+  // created() {
+  //   this.getList()
+  // },
+  created() {
+    this.tableReset();
+  },
+  methods: {
+    handleAdd() {
+      const columns = [
+        { name: "专利名称", value: "111" },
+        { name: "法律状态", value: "111" },
+        { name: "描述", value: "111" },
+      ];
+
+      const formData = new FormData();
+      formData.append("tableName", "test");
+      formData.append("columns", JSON.stringify(columns));
+
+      axios
+        .post("/api/table/add", formData)
+        .then((response) => {
+          console.log(response.data);
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    },
+    handleFilter() {
+      this.fetchTableData(this.listQuery.tableName);
+    },
+    tableReset() {
+      axios
+        .get("/api/tables")
+        .then((response) => {
+          this.showTableOptions = response.data.map((tableName) => ({
+            value: tableName,
+            label: tableName,
+          }));
+
+          //默认第一个表格内容初始化页面
+          if (this.showTableOptions.length > 0) {
+            const firstTableName = this.showTableOptions[0].value;
+            this.fetchTableData(firstTableName);
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching tables:", error);
+        });
+    },
+    fetchTableData(tableName) {
+      this.listLoading = true;
+
+      console.log("waiting...");
+      axios
+        .get(`/api/table/${tableName}`)
+        .then((response) => {
+          this.showTableName = tableName;
+          this.showTableColumns = response.data.columns;
+          this.showTableList = response.data.data;
+          this.listLoading = false;
+        })
+        .catch((error) => {
+          console.error("There was an error fetching the table data:", error);
+          this.listLoading = false;
+        });
+    },
+    sortChange(data) {
+      const { prop, order } = data;
+      // if (prop === 'id') {
+      //   this.sortByID(order)
+      // }
+    },
+    createTable() {
+      this.listLoading = true;
+
+      // const payload = {
+      //   tableA: "关联测试",
+      //   tableB: "南开大学-专利0517",
+      //   newTable: "专利-关联",
+      //   columnsA: ["序号", "状态", "描述"],
+      //   columnsB: ["申请号", "专利名称"],
+      //   joinColumn: "序号",
+      // };
+      const formData = new FormData();
+      formData.append("tableA", this.temp.tableA);
+      formData.append("tableB", this.temp.tableB);
+      formData.append("newTable", this.temp.newTable);
+
+      this.temp.columnsA.forEach((column) => {
+        formData.append("columnsA[]", column);
+      });
+
+      this.temp.columnsB.forEach((column) => {
+        formData.append("columnsB[]", column);
+      });
+
+      formData.append("joinColumn", this.temp.joinColumn);
+
+      axios
+        .post("/api/table/create", formData)
+        .then((response) => {
+          this.showTableName = this.temp.newTable;
+          this.showTableColumns = response.data.columns;
+          this.showTableList = response.data.data;
+          this.listLoading = false;
+        })
+        .catch((error) => {
+          this.listLoading = false;
+          console.error(error);
+        });
+    },
+    resetTemp() {
+      this.temp = {
+        id: undefined,
+        importance: 1,
+        remark: "",
+        timestamp: new Date(),
+        title: "",
+        status: "published",
+        type: "",
+      };
+    },
+    handleCreate() {
+      this.resetTemp(); // 重置表单数据
+      this.dialogStatus = "create";
+      this.dialogFormVisible = true;
+      this.$nextTick(() => {
+        this.$refs["dataForm"].clearValidate(); // 清空表单验证状态
+      });
+      axios
+        .get("/api/tables")
+        .then((response) => {
+          this.tableOptions = response.data.map((tableName) => ({
+            value: tableName,
+            label: tableName,
+            disabled: false,
+          }));
+        })
+        .catch((error) => {
+          console.error("Error fetching tables:", error);
+        });
+    },
+
+    fetchColumns(tableType) {
+      let tableName = tableType === "A" ? this.temp.tableA : this.temp.tableB;
+      if (tableName) {
+        axios
+          .get(`/api/columns/${tableName}`)
+          .then((response) => {
+            const columns = response.data.map((column) => ({
+              value: column,
+              label: column,
+              disabled: false,
+            }));
+            if (tableType === "A") {
+              this.ColumnAoptions = columns;
+              //清空合并列、表格A选择
+              this.temp.joinColumn = "";
+              this.temp.columnsA = [];
+            } else {
+              this.ColumnBoptions = columns;
+              this.temp.columnsB = [];
+              //如果合并列不为空，更新ColumnBoptions中的 disabled 属性
+              const joinColumnValue = this.temp.joinColumn;
+              if (joinColumnValue !== "") {
+                this.ColumnBoptions.forEach((item) => {
+                  if (item.value === joinColumnValue) {
+                    item.disabled = true;
+                  } else {
+                    item.disabled = false;
+                  }
+                });
+              }
+            }
+            // 更新 tableOptions 中的 disabled 属性
+            this.tableOptions.forEach((option) => {
+              option.disabled =
+                option.value === this.temp.tableA ||
+                option.value === this.temp.tableB;
+            });
+          })
+
+          .catch((error) => {
+            console.error(`Error fetching columns for ${tableName}:`, error);
+          });
+      }
+    },
+    handleJoinColumnChange() {
+      // 清空表格A和表格B的关联列
+      this.temp.columnsA = [];
+      this.temp.columnsB = [];
+      // 禁用同名列选项
+      const joinColumnValue = this.temp.joinColumn;
+      if (joinColumnValue !== "") {
+        this.ColumnAoptions.forEach((item) => {
+          if (item.value === joinColumnValue) {
+            item.disabled = true;
+          } else {
+            item.disabled = false;
+          }
+        });
+
+        this.ColumnBoptions.forEach((item) => {
+          if (item.value === joinColumnValue) {
+            item.disabled = true;
+          } else {
+            item.disabled = false;
+          }
+        });
+      } else {
+        // 如果没有选择合并列，则重置所有列的 disabled 属性
+        this.ColumnAoptions.forEach((item) => {
+          item.disabled = false;
+        });
+
+        this.ColumnBoptions.forEach((item) => {
+          item.disabled = false;
+        });
+      }
+    },
+    createData() {
+      this.$refs["dataForm"].validate((valid) => {
+        if (valid) {
+          // 先验证表格名不重复等
+          const exists = this.tableOptions.some(
+            (option) => option.value === this.temp.newTable
+          );
+          if (exists) {
+            this.$message.error("表格名已存在，请输入不同的表格名称。");
+          } else {
+            // 验证 ColumnBoptions 是否存在 joinColumn
+            const joinColumnExists = this.ColumnBoptions.some(
+              (option) => option.value === this.temp.joinColumn
+            );
+            if (!joinColumnExists) {
+              this.$message.error(
+                "表格B关联列中不存在选定的合并列，请重新选择。"
+              );
+            } else {
+              this.createTable();
+              this.dialogFormVisible = false;
+            }
+          }
+        } else {
+          // 验证不通过的处理逻辑，例如给出错误提示
+        }
+      });
+    },
+    updateData() {},
+    // getList() {
+    //   this.listLoading = true
+    //   fetchList(this.listQuery).then(response => {
+    //     this.list = response.data.items
+    //     this.total = response.data.total
+
+    //     // Just to simulate the time of the request
+    //     setTimeout(() => {
+    //       this.listLoading = false
+    //     }, 1.5 * 1000)
+    //   })
+    // },
+    // handleFilter() {
+    //   this.listQuery.page = 1
+    //   this.getList()
+    // },
+    // handleModifyStatus(row, status) {
+    //   this.$message({
+    //     message: '操作Success',
+    //     type: 'success'
+    //   })
+    //   row.status = status
+    // },
+
+    // sortByID(order) {
+    //   if (order === 'ascending') {
+    //     this.listQuery.sort = '+id'
+    //   } else {
+    //     this.listQuery.sort = '-id'
+    //   }
+    //   this.handleFilter()
+    // },
+    // resetTemp() {
+    //   this.temp = {
+    //     id: undefined,
+    //     importance: 1,
+    //     remark: '',
+    //     timestamp: new Date(),
+    //     title: '',
+    //     status: 'published',
+    //     type: ''
+    //   }
+    // },
+    // handleCreate() {
+    //   this.resetTemp()
+    //   this.dialogStatus = 'create'
+    //   this.dialogFormVisible = true
+    //   this.$nextTick(() => {
+    //     this.$refs['dataForm'].clearValidate()
+    //   })
+    // },
+    // createData() {
+    //   this.$refs['dataForm'].validate((valid) => {
+    //     if (valid) {
+    //       this.temp.id = parseInt(Math.random() * 100) + 1024 // mock a id
+    //       this.temp.author = 'vue-element-admin'
+    //       createArticle(this.temp).then(() => {
+    //         this.list.unshift(this.temp)
+    //         this.dialogFormVisible = false
+    //         this.$notify({
+    //           title: 'Success',
+    //           message: 'Created Successfully',
+    //           type: 'success',
+    //           duration: 2000
+    //         })
+    //       })
+    //     }
+    //   })
+    // },
+    // handleUpdate(row) {
+    //   this.temp = Object.assign({}, row) // copy obj
+    //   this.temp.timestamp = new Date(this.temp.timestamp)
+    //   this.dialogStatus = 'update'
+    //   this.dialogFormVisible = true
+    //   this.$nextTick(() => {
+    //     this.$refs['dataForm'].clearValidate()
+    //   })
+    // },
+    // updateData() {
+    //   this.$refs['dataForm'].validate((valid) => {
+    //     if (valid) {
+    //       const tempData = Object.assign({}, this.temp)
+    //       tempData.timestamp = +new Date(tempData.timestamp) // change Thu Nov 30 2017 16:41:05 GMT+0800 (CST) to 1512031311464
+    //       updateArticle(tempData).then(() => {
+    //         const index = this.list.findIndex(v => v.id === this.temp.id)
+    //         this.list.splice(index, 1, this.temp)
+    //         this.dialogFormVisible = false
+    //         this.$notify({
+    //           title: 'Success',
+    //           message: 'Update Successfully',
+    //           type: 'success',
+    //           duration: 2000
+    //         })
+    //       })
+    //     }
+    //   })
+    // },
+    // handleDelete(row, index) {
+    //   this.$notify({
+    //     title: 'Success',
+    //     message: 'Delete Successfully',
+    //     type: 'success',
+    //     duration: 2000
+    //   })
+    //   this.list.splice(index, 1)
+    // },
+    // handleFetchPv(pv) {
+    //   fetchPv(pv).then(response => {
+    //     this.pvData = response.data.pvData
+    //     this.dialogPvVisible = true
+    //   })
+    // },
+    // handleDownload() {
+    //   this.downloadLoading = true
+    //   import('@/vendor/Export2Excel').then(excel => {
+    //     const tHeader = ['timestamp', 'title', 'type', 'importance', 'status']
+    //     const filterVal = ['timestamp', 'title', 'type', 'importance', 'status']
+    //     const data = this.formatJson(filterVal)
+    //     excel.export_json_to_excel({
+    //       header: tHeader,
+    //       data,
+    //       filename: 'table-list'
+    //     })
+    //     this.downloadLoading = false
+    //   })
+    // },
+    // formatJson(filterVal) {
+    //   return this.list.map(v => filterVal.map(j => {
+    //     if (j === 'timestamp') {
+    //       return parseTime(v[j])
+    //     } else {
+    //       return v[j]
+    //     }
+    //   }))
+    // },
+    // getSortClass: function(key) {
+    //   const sort = this.listQuery.sort
+    //   return sort === `+${key}` ? 'ascending' : 'descending'
+    // }
+  },
+};
+</script>
+<style>
+.el-table__body-wrapper .cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.el-table__body-wrapper .cell:hover {
+  overflow: visible;
+  white-space: normal;
+}
+</style>

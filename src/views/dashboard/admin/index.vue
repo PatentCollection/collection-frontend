@@ -2,10 +2,11 @@
   <div class="dashboard-editor-container">
     <github-corner class="github-corner" />
 
-    <panel-group @handleSetLineChartData="handleSetLineChartData" />
+    <!-- <panel-group @handleSetLineChartData="handleSetLineChartData" /> -->
 
     <el-row style="background:#fff;padding:16px 16px 0;margin-bottom:32px;">
-      <line-chart :chart-data="lineChartData" />
+      <!-- <line-chart :chart-data="lineChartData" /> -->
+      <treemap-chart />
     </el-row>
 
     <el-row :gutter="32">
@@ -44,12 +45,14 @@
 import GithubCorner from '@/components/GithubCorner'
 import PanelGroup from './components/PanelGroup'
 import LineChart from './components/LineChart'
+import TreemapChart from './components/TreemapChart'
 import RaddarChart from './components/RaddarChart'
 import PieChart from './components/PieChart'
 import BarChart from './components/BarChart'
 import TransactionTable from './components/TransactionTable'
 import TodoList from './components/TodoList'
 import BoxCard from './components/BoxCard'
+import axios from "axios";
 
 const lineChartData = {
   newVisitis: {
@@ -76,6 +79,7 @@ export default {
     GithubCorner,
     PanelGroup,
     LineChart,
+    TreemapChart,
     RaddarChart,
     PieChart,
     BarChart,
@@ -84,14 +88,16 @@ export default {
     BoxCard
   },
   data() {
-    return {
+   
+     return {
       lineChartData: lineChartData.newVisitis
     }
   },
   methods: {
     handleSetLineChartData(type) {
       this.lineChartData = lineChartData[type]
-    }
+    },
+    
   }
 }
 </script>

@@ -35,6 +35,12 @@ const tableRouter = {
       component: () => import('@/views/table/complex-table'),
       name: 'ComplexTable',
       meta: { title: 'Complex Table' }
+    },
+    {
+      path: 'patent-table',
+      component: () => import('@/views/table/patent-table'),
+      name: 'PatentTable',
+      meta: { title: 'Patent Table' }
     }
   ]
 }
