@@ -42,7 +42,7 @@
         class="filter-item"
         style="margin-left: 10px"
         type="primary"
-        icon="el-icon-edit"
+        icon="el-icon-plus"
         @click="handleCreate"
       >
         Create
@@ -85,11 +85,23 @@
         show-overflow-tooltip
       >
       </el-table-column>
+      <!-- 操作列 -->
+      <el-table-column label="操作" width="200">
+        <template slot-scope="scope">
+          <el-button size="mini" type="primary" @click="handleEdit(scope.row)">
+            Edit
+          </el-button>
+          <el-button size="mini" type="danger" @click="handleDelete(scope.row)">
+            Delete
+          </el-button>
+        </template>
+      </el-table-column>
     </el-table>
 
     <!-- <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" /> -->
 
-    <el-dialog :title="textMap[dialogStatus]" :visible.sync="dialogFormVisible">
+    <!-- create 对话框 -->
+    <el-dialog :title="新建表格" :visible.sync="createDialogFormVisible">
       <el-form
         ref="dataForm"
         :rules="rules"
@@ -182,35 +194,36 @@
             </el-option>
           </el-select>
         </el-form-item>
-
-        <!-- <el-form-item label="Type" prop="type">
-          <el-select v-model="temp.type" class="filter-item" placeholder="Please select">
-            <el-option v-for="item in calendarTypeOptions" :key="item.key" :label="item.display_name" :value="item.key" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Date" prop="timestamp">
-          <el-date-picker v-model="temp.timestamp" type="datetime" placeholder="Please pick a date" />
-        </el-form-item>
-        <el-form-item label="Title" prop="title">
-          <el-input v-model="temp.title" />
-        </el-form-item>
-        <el-form-item label="Status">
-          <el-select v-model="temp.status" class="filter-item" placeholder="Please select">
-            <el-option v-for="item in statusOptions" :key="item" :label="item" :value="item" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Imp">
-          <el-rate v-model="temp.importance" :colors="['#99A9BF', '#F7BA2A', '#FF9900']" :max="3" style="margin-top:8px;" />
-        </el-form-item>
-        <el-form-item label="Remark">
-          <el-input v-model="temp.remark" :autosize="{ minRows: 2, maxRows: 4}" type="textarea" placeholder="Please input" />
-        </el-form-item> -->
       </el-form>
       <div slot="footer" class="dialog-footer">
-        <el-button @click="dialogFormVisible = false"> Cancel </el-button>
+        <el-button @click="createDialogFormVisible = false"> Cancel </el-button>
+        <el-button type="primary" @click="createData()"> Confirm </el-button>
+      </div>
+    </el-dialog>
+
+    <!-- add / edit 对话框 -->
+    <el-dialog
+      :title="textMap[dialogStatus]"
+      :visible.sync="addDialogFormVisible"
+    >
+      <el-form
+        ref="addDataForm"
+        :rules="addRules"
+        :model="addTemp"
+        label-position="left"
+        label-width="120px"
+        style="width: 400px; margin-left: 50px"
+      >
+      <el-form-item v-for="column in showTableColumns" :label="column" :prop="column" :key="column">
+          <el-input v-model="addTemp[column]"></el-input>
+        </el-form-item>
+      
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="addDialogFormVisible = false"> Cancel </el-button>
         <el-button
           type="primary"
-          @click="dialogStatus === 'create' ? createData() : updateData()"
+          @click="dialogStatus === 'add' ? addData() : editData()"
         >
           Confirm
         </el-button>
@@ -250,12 +263,8 @@ export default {
       tableKey: 0,
       listLoading: true,
       total: 0,
-      dialogFormVisible: false,
-      dialogStatus: "",
-      textMap: {
-        update: "修改表格",
-        create: "新建关联表格",
-      },
+      createDialogFormVisible: false,
+
       rules: {
         newTable: [
           { required: true, message: "请输入表格名称", trigger: "change" },
@@ -297,6 +306,13 @@ export default {
       tableOptions: [],
       ColumnAoptions: [],
       ColumnBoptions: [],
+
+      addDialogFormVisible: false,
+      dialogStatus: "",
+      textMap: {
+        add: "新增表格内容",
+        edit: "修改表格内容",
+      },
     };
   },
   // created() {
@@ -306,26 +322,6 @@ export default {
     this.tableReset();
   },
   methods: {
-    handleAdd() {
-      const columns = [
-        { name: "专利名称", value: "111" },
-        { name: "法律状态", value: "111" },
-        { name: "描述", value: "111" },
-      ];
-
-      const formData = new FormData();
-      formData.append("tableName", "test");
-      formData.append("columns", JSON.stringify(columns));
-
-      axios
-        .post("/api/table/add", formData)
-        .then((response) => {
-          console.log(response.data);
-        })
-        .catch((error) => {
-          console.error(error);
-        });
-    },
     handleFilter() {
       this.fetchTableData(this.listQuery.tableName);
     },
@@ -340,8 +336,8 @@ export default {
 
           //默认第一个表格内容初始化页面
           if (this.showTableOptions.length > 0) {
-            const firstTableName = this.showTableOptions[0].value;
-            this.fetchTableData(firstTableName);
+            this.showTableName = this.showTableOptions[0].value;
+            this.fetchTableData(this.showTableName);
           }
         })
         .catch((error) => {
@@ -412,19 +408,25 @@ export default {
     },
     resetTemp() {
       this.temp = {
-        id: undefined,
-        importance: 1,
-        remark: "",
-        timestamp: new Date(),
-        title: "",
-        status: "published",
-        type: "",
+        tableA: "",
+        tableB: "",
+        newTable: "",
+        columnsA: [],
+        columnsB: [],
+        joinColumn: "",
       };
+      this.tableOptions = [];
+      this.ColumnAoptions = [];
+      this.ColumnBoptions = [];
+    },
+    resetaddTemp(){
+      //重置add表格的内容（清空）
+
     },
     handleCreate() {
       this.resetTemp(); // 重置表单数据
       this.dialogStatus = "create";
-      this.dialogFormVisible = true;
+      this.createDialogFormVisible = true;
       this.$nextTick(() => {
         this.$refs["dataForm"].clearValidate(); // 清空表单验证状态
       });
@@ -539,7 +541,7 @@ export default {
               );
             } else {
               this.createTable();
-              this.dialogFormVisible = false;
+              this.createDialogFormVisible = false;
             }
           }
         } else {
@@ -547,7 +549,60 @@ export default {
         }
       });
     },
-    updateData() {},
+    handleAdd() {
+      this.resetaddTemp(); // 重置表单数据
+      this.dialogStatus = "add";
+      this.addDialogFormVisible = true;
+      this.$nextTick(() => {
+        this.$refs["addDataForm"].clearValidate(); // 清空表单验证状态
+      });
+    },
+    addData() {
+      const columns = [
+        { name: "序号", value: "111" },
+        { name: "描述", value: "111" },
+      ];
+
+      const formData = new FormData();
+      formData.append("tableName", "test");
+      formData.append("columns", JSON.stringify(columns));
+
+      axios
+        .post("/api/table/add", formData)
+        .then((response) => {
+          console.log(response.data);
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    },
+    editData() {},
+    handleDelete(row) {
+      this.$confirm("确定要删除这一行吗？", "警告", {
+        confirmButtonText: "删除",
+        cancelButtonText: "取消",
+        type: "warning",
+      })
+        .then(() => {
+          const formData = new FormData();
+          formData.append("tableName", this.showTableName);
+          formData.append("row_id", row.id);
+
+          axios
+            .post("/api/table/delete", formData) // 假设 'id' 是唯一标识符
+            .then((response) => {
+              this.$message.success("删除成功");
+              this.fetchTableData(this.showTableName); // 刷新表格数据
+            })
+            .catch((error) => {
+              console.error("删除行时出错:", error);
+              this.$message.error("删除失败");
+            });
+        })
+        .catch(() => {
+          this.$message.info("已取消删除");
+        });
+    },
     // getList() {
     //   this.listLoading = true
     //   fetchList(this.listQuery).then(response => {
