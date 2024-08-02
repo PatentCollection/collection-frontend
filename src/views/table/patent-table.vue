@@ -104,7 +104,7 @@
     <el-dialog :title="新建表格" :visible.sync="createDialogFormVisible">
       <el-form
         ref="dataForm"
-        :rules="rules"
+        :rules="createRules"
         :model="temp"
         label-position="left"
         label-width="120px"
@@ -214,7 +214,11 @@
         label-width="120px"
         style="width: 400px; margin-left: 50px"
       >
-      <el-form-item v-for="column in showTableColumns" :label="column" :prop="column" :key="column">
+      <el-form-item
+          v-for="column in filteredColumns"
+          :key="column"
+          :label="column"
+        >
           <el-input v-model="addTemp[column]"></el-input>
         </el-form-item>
       
@@ -265,7 +269,7 @@ export default {
       total: 0,
       createDialogFormVisible: false,
 
-      rules: {
+      createRules: {
         newTable: [
           { required: true, message: "请输入表格名称", trigger: "change" },
         ],
@@ -307,12 +311,17 @@ export default {
       ColumnAoptions: [],
       ColumnBoptions: [],
 
+      //add edit  Dialog
       addDialogFormVisible: false,
-      dialogStatus: "",
+      dialogStatus: '', // 'add' or 'edit'
+      addTemp: {}, 
+      addRules: {}, 
+      addColumns: [], 
       textMap: {
         add: "新增表格内容",
         edit: "修改表格内容",
       },
+      editId:''
     };
   },
   // created() {
@@ -320,6 +329,11 @@ export default {
   // },
   created() {
     this.tableReset();
+  },
+  computed: {
+    filteredColumns() {
+      return this.showTableColumns.filter(column => column !== 'id');
+    }
   },
   methods: {
     handleFilter() {
@@ -402,8 +416,9 @@ export default {
           this.listLoading = false;
         })
         .catch((error) => {
-          this.listLoading = false;
           console.error(error);
+          this.listLoading = false;
+
         });
     },
     resetTemp() {
@@ -421,6 +436,7 @@ export default {
     },
     resetaddTemp(){
       //重置add表格的内容（清空）
+      this.addTemp={}
 
     },
     handleCreate() {
@@ -550,6 +566,8 @@ export default {
       });
     },
     handleAdd() {
+    
+
       this.resetaddTemp(); // 重置表单数据
       this.dialogStatus = "add";
       this.addDialogFormVisible = true;
@@ -558,25 +576,67 @@ export default {
       });
     },
     addData() {
-      const columns = [
-        { name: "序号", value: "111" },
-        { name: "描述", value: "111" },
-      ];
+
+      const columns = this.filteredColumns.map(column => ({
+        name: column,
+        value: this.addTemp[column] || ''  // 如果没有填写内容，则设置为''
+      }));
+     
 
       const formData = new FormData();
-      formData.append("tableName", "test");
+      formData.append("tableName", this.showTableName);
       formData.append("columns", JSON.stringify(columns));
 
       axios
         .post("/api/table/add", formData)
         .then((response) => {
-          console.log(response.data);
+          this.$message.success("添加成功");
+          this.fetchTableData(this.showTableName);
+          this.addDialogFormVisible = false;
+
         })
         .catch((error) => {
           console.error(error);
+          this.addDialogFormVisible = false;
+
+
         });
     },
-    editData() {},
+    handleEdit(row){
+      console.log(row)
+      this.dialogStatus = "edit";
+      this.addTemp = { ...row };
+      this.editId=row.id
+      this.addDialogFormVisible = true;
+      this.$nextTick(() => {
+        this.$refs["addDataForm"].clearValidate(); // 清空表单验证状态
+      });
+    },
+    editData() {
+      const columns = this.filteredColumns.map(column => ({
+        name: column,
+        value: this.addTemp[column] || ''  // 如果没有填写内容，则设置为''
+      }));
+      const formData = new FormData();
+      formData.append("tableName", this.showTableName);
+      formData.append("id",this.editId)
+      formData.append("columns", JSON.stringify(columns));
+      axios
+        .post("/api/table/update", formData)
+        .then((response) => {
+          this.$message.success("更新成功");
+          this.fetchTableData(this.showTableName);
+          this.addDialogFormVisible = false;
+
+        })
+        .catch((error) => {
+          console.error(error);
+          this.addDialogFormVisible = false;
+
+
+        });
+
+    },
     handleDelete(row) {
       this.$confirm("确定要删除这一行吗？", "警告", {
         confirmButtonText: "删除",
